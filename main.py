@@ -10,7 +10,7 @@ import time
 # Set up WebDriver 
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # Run headless Chrome for efficiency
-service = Service('chromedriver.exe')  # Update path to your chromedriver
+service = Service('chromedriver/chromedriver.exe')  # Update path to your chromedriver
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # List of URLs to scrape
