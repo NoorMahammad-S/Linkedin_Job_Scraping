@@ -6,11 +6,14 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
+import re
 
-# Set up WebDriver 
+# Set up WebDriver
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # Run headless Chrome for efficiency
-service = Service('chromedriver/chromedriver.exe')  # Update path to your chromedriver
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+service = Service('ChromeDriver/chromedriver.exe')  # Update path to your chromedriver
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # List of URLs to scrape
@@ -22,13 +25,13 @@ urls = [
 
 job_data = []
 
-
 def get_job_details(job_url):
     driver.get(job_url)
+    time.sleep(3)  # Allow time for the page to load
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     try:
-        company_name = soup.find('a', {'class': 'topcard__org-name-link'}).text.strip()
+        company_name = soup.find('a', {'class': 'topcard__org-name-link topcard__flavor--black-link'}).text.strip()
     except AttributeError:
         company_name = 'null'
 
@@ -48,12 +51,12 @@ def get_job_details(job_url):
         posted_on = 'null'
 
     try:
-        employment_type = soup.find('span', {'class': 'topcard__flavor--bullet'}).text.strip()
+        employment_type = soup.find('span', {'class': 'topcard__flavor--metadata'}).text.strip()
     except AttributeError:
         employment_type = 'null'
 
     try:
-        work_mode = soup.find('span', {'class': 'workplace-type'}).text.strip()
+        work_mode = soup.find('span', {'class': 'topcard__flavor--metadata'}).text.strip()
     except AttributeError:
         work_mode = 'null'
 
@@ -63,7 +66,7 @@ def get_job_details(job_url):
     except AttributeError:
         skills = 'null'
 
-    job_id = job_url.split('/')[-2]
+    job_id = re.findall(r'/(\d+)', job_url)[0] if re.findall(r'/(\d+)', job_url) else 'null'
     posted_date = calculate_posted_date(posted_on)
 
     return {
@@ -78,23 +81,27 @@ def get_job_details(job_url):
         "skills": skills
     }
 
-
 def calculate_posted_date(posted_on):
     if 'today' in posted_on.lower():
         return time.strftime("%d-%m-%Y")
+    elif 'yesterday' in posted_on.lower():
+        return (pd.Timestamp.now() - pd.Timedelta(days=1)).strftime("%d-%m-%Y")
     else:
         try:
-            days_ago = int(posted_on.split()[1])
+            days_ago = int(re.search(r'\d+', posted_on).group())
             return (pd.Timestamp.now() - pd.Timedelta(days=days_ago)).strftime("%d-%m-%Y")
         except:
             return 'null'
-
 
 for url in urls:
     driver.get(url)
     time.sleep(3)  # Allow time for the page to load
 
-    job_links = driver.find_elements(By.CSS_SELECTOR, 'a.result-card__full-card-link')
+    # Scroll to the bottom to load more jobs
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(3)  # Wait for additional jobs to load
+
+    job_links = driver.find_elements(By.CSS_SELECTOR, 'a.base-card__full-link')
     job_urls = [link.get_attribute('href') for link in job_links[:50]]  # Get the first 50 job links
 
     for job_url in job_urls:
@@ -110,3 +117,5 @@ with open('jobs_data.json', 'w') as json_file:
 
 df = pd.DataFrame(job_data)
 df.to_csv('jobs_data.csv', index=False)
+
+print("Data scraping and saving completed successfully.")
