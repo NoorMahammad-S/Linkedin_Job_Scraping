@@ -27,4 +27,4 @@ This project involves developing a Python script to scrape job postings from Lin
 - `selenium`
 - `beautifulsoup4`
 - `pandas`
-- WebDriver for your browser (e.g., ChromeDriver)
+- WebDriver for your browser (e.g., ChromeDriver
